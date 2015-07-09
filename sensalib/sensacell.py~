@@ -1,0 +1,11 @@
+#!/usr/bin/python2.7
+#-*- coding: utf-8 -*-
+
+import serial
+import time
+
+
+class Sensacell:
+
+	def __init__(self):
+		self.name = "Dupont"
