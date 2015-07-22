@@ -21,18 +21,17 @@ class Sensacell:
 			stopbits=serial.STOPBITS_ONE,
 			timeout = 10
 		)
-		self.__serUSB.flush
-		self.__serUSB.flushInput
-		self.__serUSB.flushOutput
 		self.__ser = io.TextIOWrapper(io.BufferedRWPair(self.__serUSB,self.__serUSB,1),
 							newline = '\r',
 							line_buffering = True)
+		self.flush(1200)
 		self.__colorArray = []
 		self.__sensorArray = []
 		self.__addressList = {}
 		self.__height = 0
 		self.__width = 0
 		self.__nbModules = 0
+		self.__write("0300a00\r")
 
 	def setSerial(self, port):
 		self.__serUSB = serial.Serial(
@@ -55,6 +54,7 @@ class Sensacell:
 		line = ""
 		while line != "01b00\r":
 			line = self.__ser.readline()
+			print line
 			if len (line) == 9:
 				if line[:1]=='0' or line[:1]=='1':
 					x=4*(int(line[4:6],16)-1)
@@ -113,7 +113,9 @@ class Sensacell:
 
 	def __write(self, str):
 		self.__serUSB.flushInput()
-		self.__serUSB.flush()
+		self.__serUSB.write(str)
+
+	def write(self, str):
 		self.__serUSB.write(str)
 
 	def getColorArray(self):
@@ -136,15 +138,13 @@ class Sensacell:
 
 	def moduleListenning(self, address):
 		self.__write("r%0.2X\r"%address)
-		print ("r%0.2X\r"%address)
 		line = self.__ser.readline()
-		print line
 		self.__updateSensorModule(line,address)
 
 	def __updateSensorModule(self, line, address):
 		x = self.__addressList[address][0]
 		y = self.__addressList[address][1]
-		binaryLine =  "{0:b}".format(int(line,16),"0").zfill(16)
+		binaryLine =  "{0:1b}".format(int(line,16),"0").zfill(16)
 		k = 0
 		for i in range(y,y+4):
 			for j in range(x,x+4):
@@ -156,3 +156,7 @@ class Sensacell:
 		line = self.__ser.readline()
 		for i in range(1,self.__nbModules+1):
 			self.__updateSensorModule(line[(i-1)*4:((i-1)*4)+4],i)
+
+	def flush(self, nbBytesToflush):
+		for i in range(1,nbBytesToflush):
+			self.__write("\r")

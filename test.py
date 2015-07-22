@@ -5,14 +5,15 @@ import sys
 import sensalib
 import numpy as np
 from sensalib.util import *
+import time
 
 port = str(sys.argv[1])
 
 #"/dev/ttyUSB1"
 s = sensalib.Sensacell(port)
 s.fileAddressing("config.txt")
-s.setColor(0xFF0000,0,0)
-s.fullDisplay()
-s.moduleListenning(13)
-#s.setColorArray(s.getSensorArray())
-#s.fullDisplay()
+
+while 1:
+	s.fullListenning()
+	s.setColorArray(s.getSensorArray())
+	s.fullDisplay()
