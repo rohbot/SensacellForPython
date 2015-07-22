@@ -32,6 +32,7 @@ class Sensacell:
 		self.__width = 0
 		self.__nbModules = 0
 		self.__write("0300a00\r")
+		self.__previousColorArray = []
 
 	def setSerial(self, port):
 		self.__serUSB = serial.Serial(
@@ -64,13 +65,11 @@ class Sensacell:
 					if y/4 > self.__height :
 						self.__height = y/4 + 1
 					self.__addressList[int(line[6:8],16)] = [x,y]
-		self.__nbModules = self.__width * self.__height
-		self.__colorArray = np.zeros((self.__height*4, self.__width*4))
-		self.__sensorArray = np.zeros((self.__height*4, self.__width*4))
 		file = open(filename, 'wb')
 		pickle.dump(self.__width,file)
 		pickle.dump(self.__height,file)
 		pickle.dump(self.__addressList,file)
+		self.__arraysInit(self.__height, self.__width)
 		file.close()
 		print "Height :", self.__height, " Width :", self.__width
 		print "End Of autoAddressing, data saved in", filename
@@ -81,17 +80,20 @@ class Sensacell:
 		self.__width = pickle.load(file)
 		self.__height = pickle.load(file)
 		self.__addressList = pickle.load(file)
-		self.__colorArray = np.zeros((self.__height*4, self.__width*4))
-		self.__sensorArray = np.zeros((self.__height*4, self.__width*4))
-		self.__nbModules = self.__width * self.__height
+		self.__arraysInit(self.__height, self.__width)
 		file.close()
-
 		print "Height :", self.__height, " Width :", self.__width
 		print "End Of fileAddressing, data loaded from", filename
 
-	def setColor(self, color, x, y):
+	def __arraysInit(self, height, width):
+		self.__nbModules = width * height
+		self.__colorArray = np.zeros((height*4, width*4))
+		self.__previousColorArray = np.copy(self.__colorArray)
+		self.__sensorArray = np.zeros((height*4, width*4))
+		self.__fullDisplay()
+
+	def setColor(self, color, y, x):
 		self.__colorArray[y][x] = color
-		#print self.__colorArray
 
 	def moduleDisplay(self, address):
 		self.__write("0101a%0.2X\r"%address)
@@ -101,7 +103,7 @@ class Sensacell:
 			for j in range(x,x+4):
 				self.__write(util.intToByte(self.__colorArray[i][j]))
 
-	def fullDisplay(self):
+	def __fullDisplay(self):
 		self.__write("01%0.2Xa01\r"%self.__nbModules)
 		for i in range (1, self.__nbModules + 1):
 			x = self.__addressList[i][0]
@@ -110,6 +112,20 @@ class Sensacell:
 				for j in range(x,x+4):
 					self.__write(util.intToByte(self.__colorArray[i][j]))
 
+	def fullDisplay(self):
+		changedModules = []
+		for i in range (0,self.__width*4-1):
+			for j in range (0,self.__height*4-1):
+				if self.__colorArray[j][i] != self.__previousColorArray[j][i]:
+					if self.getAddress(j,i) not in changedModules:
+						changedModules.append(self.getAddress(j,i))
+		if len(changedModules)/self.__nbModules < 0.92:
+			for i in changedModules:
+				self.moduleDisplay(i)
+		else:
+			self.__fullDisplay()
+		self.__previousColorArray = np.copy(self.__colorArray)
+		#return len(changedModules)
 
 	def __write(self, str):
 		self.__serUSB.flushInput()
@@ -130,7 +146,7 @@ class Sensacell:
 	def getNbModules(self):
 		return self.__nbModules
 
-	def getAddress(self,x ,y):
+	def getAddress(self,y ,x):
 		coord = [x - x%4, y - y%4]
 		for key in self.__addressList.keys():
 			if coord == self.__addressList[key]:
@@ -151,7 +167,7 @@ class Sensacell:
 				self.__sensorArray[i][j] = int(binaryLine[k])*(0xFF0000)
 				k+=1
 
-	def  fullListenning(self):
+	def fullListenning(self):
 		self.__write("00%0.2Xa01\r"%self.__nbModules)
 		line = self.__ser.readline()
 		for i in range(1,self.__nbModules+1):
