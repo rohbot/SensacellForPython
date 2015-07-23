@@ -12,21 +12,13 @@ port = str(sys.argv[1])
 #"/dev/ttyUSB1"
 s = sensalib.Sensacell(port)
 s.fileAddressing("config.txt")
-for i in range (0,20):
-	for j in range (0,16):
-		s.setColor(0XFF0000,i,j)
-"""
-for i in range (20,24):
-	for j in range (0,8):
-		s.setColor(0XFF0000,i,j)
-"""
-t1 = time.time()
-t = s.fullDisplay()
-print "intel Display time : ", (time.time() - t1)
-
+s.setProportionnalMode()
+s.setTrigger(1)
 
 while 1:
 	s.fullListenning()
-	s.setColorArray(s.getSensorArray())
-	s.fullDisplay()
+	b = s.getSensorArray()
+	sensor = (0x00FF00/30)*np.array(b)
 	
+	s.setColorArray(sensor)
+	s.fullDisplay()

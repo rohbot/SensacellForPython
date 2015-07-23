@@ -19,7 +19,7 @@ class Sensacell:
 			bytesize=serial.EIGHTBITS,
 			parity=serial.PARITY_NONE,
 			stopbits=serial.STOPBITS_ONE,
-			timeout = 10
+			timeout = 0.05
 		)
 		self.__ser = io.TextIOWrapper(io.BufferedRWPair(self.__serUSB,self.__serUSB,1),
 							newline = '\r',
@@ -33,6 +33,9 @@ class Sensacell:
 		self.__nbModules = 0
 		self.__write("0300a00\r")
 		self.__previousColorArray = []
+		self.__proportionnalMode = False
+		self.setBinaryMode()
+		self.__trigger = 0
 
 	def setSerial(self, port):
 		self.__serUSB = serial.Serial(
@@ -55,7 +58,8 @@ class Sensacell:
 		line = ""
 		while line != "01b00\r":
 			line = self.__ser.readline()
-			print line
+			if len(line) > 2:
+				print line
 			if len (line) == 9:
 				if line[:1]=='0' or line[:1]=='1':
 					x=4*(int(line[4:6],16)-1)
@@ -127,11 +131,11 @@ class Sensacell:
 		self.__previousColorArray = np.copy(self.__colorArray)
 		#return len(changedModules)
 
+	def setTrigger(self, value):
+		self.__trigger = value
+
 	def __write(self, str):
 		self.__serUSB.flushInput()
-		self.__serUSB.write(str)
-
-	def write(self, str):
 		self.__serUSB.write(str)
 
 	def getColorArray(self):
@@ -153,9 +157,14 @@ class Sensacell:
 				return key
 
 	def moduleListenning(self, address):
-		self.__write("r%0.2X\r"%address)
-		line = self.__ser.readline()
-		self.__updateSensorModule(line,address)
+		if not self.__proportionnalMode:
+			self.__write("r%0.2X\r"%address)
+			line = self.__ser.readline()
+			self.__updateSensorModule(line,address)
+		if self.__proportionnalMode:
+			self.__write("p%0.2X\r"%address)
+			line = self.__ser.readline()
+			print line
 
 	def __updateSensorModule(self, line, address):
 		x = self.__addressList[address][0]
@@ -164,15 +173,39 @@ class Sensacell:
 		k = 0
 		for i in range(y,y+4):
 			for j in range(x,x+4):
-				self.__sensorArray[i][j] = int(binaryLine[k])*(0xFF0000)
+				self.__sensorArray[i][j] = int(binaryLine[k])*15
 				k+=1
 
 	def fullListenning(self):
 		self.__write("00%0.2Xa01\r"%self.__nbModules)
-		line = self.__ser.readline()
-		for i in range(1,self.__nbModules+1):
-			self.__updateSensorModule(line[(i-1)*4:((i-1)*4)+4],i)
+		if not self.__proportionnalMode:
+			line = self.__ser.readline()
+			for i in range(1,self.__nbModules+1):
+				self.__updateSensorModule(line[(i-1)*4:((i-1)*4)+4],i)
+		if self.__proportionnalMode:
+			line = self.__serUSB.read(self.__width*self.__height*8)
+			binaryLine = ''.join('{0:08b}'.format(ord(i)) for i in line)
+			tab = np.reshape([int(binaryLine[i:i+4],2) for i in range (0,len(binaryLine),4)], (24,16))
+			for module in range (1,self.__nbModules):
+				x = self.__addressList[module][0]
+				y = self.__addressList[module][1]
+				k=0
+				for i in range(y,y+4):
+					for j in range(x,x+4):
+						if tab[module-1][k] > self.__trigger:
+							self.__sensorArray[i][j] = tab[module-1][k]
+						else:
+							self.__sensorArray[i][j] = 0
+						k+=1
 
 	def flush(self, nbBytesToflush):
 		for i in range(1,nbBytesToflush):
 			self.__write("\r")
+
+	def setProportionnalMode(self):
+		self.__write("0B01a00\r")
+		self.__proportionnalMode = True
+
+	def setBinaryMode(self):
+		self.__write("0B00a00\r")
+		self.__proportionnalMode = False
