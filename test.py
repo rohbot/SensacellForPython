@@ -15,10 +15,9 @@ s.fileAddressing("config.txt")
 s.setProportionnalMode()
 s.setTrigger(1)
 
+
 while 1:
-	s.fullListenning()
+	s.update()
 	b = s.getSensorArray()
-	sensor = (0x00FF00/30)*np.array(b)
-	
+	sensor = 1114112*np.array(b)
 	s.setColorArray(sensor)
-	s.fullDisplay()

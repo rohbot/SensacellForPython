@@ -134,6 +134,9 @@ class Sensacell:
 	def setTrigger(self, value):
 		self.__trigger = value
 
+	def getTrigger(self):
+		return self.__trigger
+
 	def __write(self, str):
 		self.__serUSB.flushInput()
 		self.__serUSB.write(str)
@@ -141,11 +144,17 @@ class Sensacell:
 	def getColorArray(self):
 		return self.__colorArray
 
+	def getColorValue(self, y, x):
+		return self.__colorArray[y][x]
+
 	def setColorArray(self,array):
 		self.__colorArray = array
 
 	def getSensorArray(self):
 		return np.copy(self.__sensorArray)
+
+	def getSensorValue(self, y, x):
+		return self.__sensorValue[y][x]
 
 	def getNbModules(self):
 		return self.__nbModules
@@ -164,7 +173,16 @@ class Sensacell:
 		if self.__proportionnalMode:
 			self.__write("p%0.2X\r"%address)
 			line = self.__ser.readline()
-			print line
+			x = self.__addressList[address][0]
+			y = self.__addressList[address][1]
+			k = 0
+			for i in range(y,y+4):
+					for j in range(x,x+4):
+						if int(line[k],16) > self.__trigger :
+							self.__sensorArray[i][j] = int(line[k],16)
+						else :
+							self.__sensorArray[i][j] = 0
+						k+=1
 
 	def __updateSensorModule(self, line, address):
 		x = self.__addressList[address][0]
@@ -209,3 +227,7 @@ class Sensacell:
 	def setBinaryMode(self):
 		self.__write("0B00a00\r")
 		self.__proportionnalMode = False
+
+	def update(self):
+		self.fullListenning()
+		self.fullDisplay()
