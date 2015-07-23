@@ -8,6 +8,7 @@ import numpy as np
 import io
 import pickle
 from sensalib.util import *
+import cv2
 
 class Sensacell:
 	def __init__(self, port):
@@ -61,7 +62,7 @@ class Sensacell:
 			if len(line) > 2:
 				print line
 			if len (line) == 9:
-				if line[:1]=='0' or line[:1]=='1':
+				if line[:1]=='0' or line[:1]=='1' or line[:1]=='5':
 					x=4*(int(line[4:6],16)-1)
 					y=4*(int(line[2:4],16)-1)
 					if x/4 > self.__width :
@@ -75,7 +76,6 @@ class Sensacell:
 		pickle.dump(self.__addressList,file)
 		self.__arraysInit(self.__height, self.__width)
 		file.close()
-		print "Height :", self.__height, " Width :", self.__width
 		print "End Of autoAddressing, data saved in", filename
 	
 	def fileAddressing(self, filename):
@@ -86,18 +86,23 @@ class Sensacell:
 		self.__addressList = pickle.load(file)
 		self.__arraysInit(self.__height, self.__width)
 		file.close()
-		print "Height :", self.__height, " Width :", self.__width
 		print "End Of fileAddressing, data loaded from", filename
 
 	def __arraysInit(self, height, width):
+		print "Initialisation..."
+		print "Height :", self.__height, " Width :", self.__width
 		self.__nbModules = width * height
+		print "Number of modules : ", self.__nbModules
 		self.__colorArray = np.zeros((height*4, width*4))
 		self.__previousColorArray = np.copy(self.__colorArray)
 		self.__sensorArray = np.zeros((height*4, width*4))
 		self.__fullDisplay()
 
-	def setColor(self, color, y, x):
-		self.__colorArray[y][x] = color
+	def setColor(self, y, x, color):
+		try:
+			if y >= 0 and x >= 0:
+				self.__colorArray[y][x] = color
+		except:pass
 
 	def moduleDisplay(self, address):
 		self.__write("0101a%0.2X\r"%address)
@@ -118,8 +123,8 @@ class Sensacell:
 
 	def fullDisplay(self):
 		changedModules = []
-		for i in range (0,self.__width*4-1):
-			for j in range (0,self.__height*4-1):
+		for i in range (0,self.__width*4):
+			for j in range (0,self.__height*4):
 				if self.__colorArray[j][i] != self.__previousColorArray[j][i]:
 					if self.getAddress(j,i) not in changedModules:
 						changedModules.append(self.getAddress(j,i))
@@ -203,15 +208,15 @@ class Sensacell:
 		if self.__proportionnalMode:
 			line = self.__serUSB.read(self.__width*self.__height*8)
 			binaryLine = ''.join('{0:08b}'.format(ord(i)) for i in line)
-			tab = np.reshape([int(binaryLine[i:i+4],2) for i in range (0,len(binaryLine),4)], (24,16))
+			tab = np.reshape([int(binaryLine[i:i+4],2) for i in range (0,len(binaryLine),4)], (self.__nbModules,16))
 			for module in range (1,self.__nbModules):
 				x = self.__addressList[module][0]
 				y = self.__addressList[module][1]
 				k=0
 				for i in range(y,y+4):
 					for j in range(x,x+4):
-						if tab[module-1][k] > self.__trigger:
-							self.__sensorArray[i][j] = tab[module-1][k]
+						if tab[module][k] > self.__trigger:
+							self.__sensorArray[i][j] = tab[module][k]
 						else:
 							self.__sensorArray[i][j] = 0
 						k+=1
@@ -231,3 +236,33 @@ class Sensacell:
 	def update(self):
 		self.fullListenning()
 		self.fullDisplay()
+
+	def setCircle(self, y0, x0, radius, Color):
+		y = radius
+		x = 0
+		decisionOver2 = 1 - y
+		while y >= x :
+			self.setColor(y + y0,x + x0, Color)
+			self.setColor(x + y0,y + x0, Color)
+			self.setColor(-y + y0, x + x0, Color)
+			self.setColor(-x + y0, y + x0, Color)
+			self.setColor(-y + y0,-x + x0, Color)
+			self.setColor(-x + y0,-y + x0, Color)
+			self.setColor(y + y0,-x + x0, Color)
+			self.setColor(x + y0,-y + x0, Color)
+			x+=1
+			if decisionOver2 <= 0 :
+				decisionOver2 += 2*x+1
+			else:
+				y-=1
+				decisionOver2 += 2*(x-y)+1
+
+	def getSensorsCentroids(self):
+		img = np.array(self.__sensorArray, dtype = np.uint8)
+		contours0, hierarchy = cv2.findContours( img.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+		moments  = [cv2.moments(cnt) for cnt in contours0]
+		centroids = []
+		for m in moments:
+			if m['m00'] != 0 :
+				centroids.append((int(round(m['m10']/m['m00'])),int(round(m['m01']/m['m00']))))
+		return centroids
