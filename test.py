@@ -18,8 +18,7 @@ s.setTrigger(1)
 s.setColor(8,16,0xFF0000)
 
 while 1 :
-	for i in range (1,48):
-		s.moduleListenning(i)
+	s.fullListenning()
 	b = s.getSensorArray()
 	sensor = 1114112*np.array(b)
 	s.setColorArray(sensor)

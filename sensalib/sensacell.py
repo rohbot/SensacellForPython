@@ -209,14 +209,14 @@ class Sensacell:
 			line = self.__serUSB.read(self.__width*self.__height*8)
 			binaryLine = ''.join('{0:08b}'.format(ord(i)) for i in line)
 			tab = np.reshape([int(binaryLine[i:i+4],2) for i in range (0,len(binaryLine),4)], (self.__nbModules,16))
-			for module in range (1,self.__nbModules):
+			for module in range (1,self.__nbModules+1):
 				x = self.__addressList[module][0]
 				y = self.__addressList[module][1]
 				k=0
 				for i in range(y,y+4):
 					for j in range(x,x+4):
-						if tab[module][k] > self.__trigger:
-							self.__sensorArray[i][j] = tab[module][k]
+						if tab[module-1][k] > self.__trigger:
+							self.__sensorArray[i][j] = tab[module-1][k]
 						else:
 							self.__sensorArray[i][j] = 0
 						k+=1
