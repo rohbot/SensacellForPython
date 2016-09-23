@@ -10,12 +10,13 @@ import pickle
 from sensalib.util import *
 import cv2
 
+
+
 class Sensacell:
-	def __init__(self, port):
+	def __init__(self, port ='/dev/ttyUSB0'):
 		self.__name = "Sensacell"
 		self.__serUSB = serial.Serial(
 			port,
-			#port ='/dev/ttyUSB0',
 			baudrate=230400,
 			bytesize=serial.EIGHTBITS,
 			parity=serial.PARITY_NONE,

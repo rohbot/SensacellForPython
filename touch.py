@@ -6,14 +6,17 @@ import sensalib
 import numpy as np
 from sensalib.util import *
 import time
+import redis
 
 #port = str(sys.argv[1])
 
 #"/dev/ttyUSB1"
+r = redis.Redis()
+
 s = sensalib.Sensacell() #"/dev/ttyUSB0")
 s.fileAddressing("config.txt")
-s.setProportionnalMode()
-s.setTrigger(1)
+#s.setBinaryMode()
+#s.setTrigger(1)
 
 RED = 0xFF0000
 BLUE = 0x0000FF
@@ -30,73 +33,69 @@ def setColor(color):
 	s.fullDisplay()
 
 def colorQuadrant(quad,color):
-	if quad == 1:
+	if quad == 0:
 		for i in range(4):
 			for j in range(4):
 				s.setColor(i,j,color)
-	if quad == 4:
+	if quad == 3:
 		for i in range(4,8):
 			for j in range(4):
 				s.setColor(i,j,color)
-	if quad == 2:
+	if quad == 1:
 		for i in range(4):
 			for j in range(4,8):
 				s.setColor(i,j,color)
-	if quad == 3:
+	if quad == 2:
 		for i in range(4,8):
 			for j in range(4,8):
 				s.setColor(i,j,color)
 	
-				
-	s.fullDisplay()
+def sendQuad(quads):				
+	r.publish('quad',quads)
+
+#delay = 0.1
 
 
-while 1:
-	colorQuadrant(1, RED)
-	colorQuadrant(2, BLUE)
-	colorQuadrant(3, GREEN)
-	colorQuadrant(4, YELLOW)
-
-	time.sleep(1)
-
-	colorQuadrant(2, RED)
-	colorQuadrant(3, BLUE)
-	colorQuadrant(4, GREEN)
-	colorQuadrant(1, YELLOW)
-
-	time.sleep(1)
-
-	colorQuadrant(3, RED)
-	colorQuadrant(4, BLUE)
-	colorQuadrant(1, GREEN)
-	colorQuadrant(2, YELLOW)
-
-	time.sleep(1)
-
-	colorQuadrant(4, RED)
-	colorQuadrant(1, BLUE)
-	colorQuadrant(2, GREEN)
-	colorQuadrant(3, YELLOW)
-
-	time.sleep(1)
-
-	setColor(BLACK)
-	time.sleep(1)
-
-
+#setColor(BLACK)
+#time.sleep(delay)
+prev_quad = [0,0,0,0]
+quad_colours = [RED,BLUE,YELLOW,GREEN]
 while 1 :
 	s.fullListenning()
+	quad_on = [0,0,0,0]
 	b = s.getSensorArray()
-	# for i in range(len(b)):
-	# 	for j in range(len(b[i])):
-	# 		if b[i][j] > 0:
-	# 			print i,j
+	for i in range(len(b)):
+		for j in range(len(b[i])):
+			if b[i][j] > 0:
+				#print i,j
+				if i > 4:
+					if j > 4:
+						quad_on[2] = 1 
+					else:
+						quad_on[3] = 1
+				else:
+					if j > 4:
+						quad_on[1] = 1
+					else:
+						quad_on[0] = 1
+
+	#print quad_on
+	if prev_quad != quad_on:
+		
+		prev_quad = quad_on	
+		sendQuad(quad_on)				
+		for i in range(4):
+			if quad_on[i]:
+				colorQuadrant(i,quad_colours[i])
+			else:
+				colorQuadrant(i,BLACK)
+		s.fullDisplay()
 
 	#sensor =0x0000FF * np.array(b)
 	print b
 	#s.setColorArray(sensor)
 	#s.fullDisplay()
-	time.sleep(1)
+	#time.sleep(1)
 
 """
 s.setColorArray(np.zeros((24,16)))
