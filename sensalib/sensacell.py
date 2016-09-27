@@ -8,7 +8,7 @@ import numpy as np
 import io
 import pickle
 from sensalib.util import *
-import cv2
+#import cv2
 
 
 
@@ -258,12 +258,12 @@ class Sensacell:
 				y-=1
 				decisionOver2 += 2*(x-y)+1
 
-	def getSensorsCentroids(self):
-		img = np.array(self.__sensorArray, dtype = np.uint8)
-		contours0, hierarchy = cv2.findContours( img.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-		moments  = [cv2.moments(cnt) for cnt in contours0]
-		centroids = []
-		for m in moments:
-			if m['m00'] != 0 :
-				centroids.append((int(round(m['m10']/m['m00'])),int(round(m['m01']/m['m00']))))
-		return centroids
+	# def getSensorsCentroids(self):
+	# 	img = np.array(self.__sensorArray, dtype = np.uint8)
+	# 	contours0, hierarchy = cv2.findContours( img.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+	# 	moments  = [cv2.moments(cnt) for cnt in contours0]
+	# 	centroids = []
+	# 	for m in moments:
+	# 		if m['m00'] != 0 :
+	# 			centroids.append((int(round(m['m10']/m['m00'])),int(round(m['m01']/m['m00']))))
+	# 	return centroids

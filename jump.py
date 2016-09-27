@@ -7,6 +7,7 @@ import numpy as np
 from sensalib.util import *
 import time
 import redis
+import serial
 
 RED = 0xFF0000
 BLUE = 0x0000FF
@@ -15,6 +16,12 @@ YELLOW = 0xFFFF00
 BLACK = 0x000000
 
 r = redis.Redis()
+
+strPort = '/dev/ttyACM0'
+
+ser = serial.Serial(strPort, 115200)
+
+
 
 s = sensalib.Sensacell() 
 s.fileAddressing("config.txt")
@@ -33,6 +40,9 @@ def setColor(color):
 setColor(BLACK)
 time.sleep(0.1)
 
+
+def setLEDColor(color):
+	ser.write(str(color))
 
 def check_touch(sensor_array):
 	touched = False
@@ -81,7 +91,7 @@ while 1 :
 			current_colour = RED
 		
 		setColor(current_colour)
-
+		setLEDColor(current_colour)
 		#print current_colour
 		last_changed = time.time()
 	
@@ -92,4 +102,5 @@ while 1 :
 			setColor(dim_color)
 			time.sleep(0.001)
 		print time.time() - last_changed
+		setLEDColor(BLACK)
 		time.sleep(0.5)	
